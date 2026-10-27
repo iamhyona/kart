@@ -220,6 +220,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
       <div class="sub">RANKING · BEST TIME</div>
       <div class="rtab" id="rkMap"></div>
       <div class="rtab" id="rkIt"><button data-v="s">SPEED</button><button data-v="i">ITEM</button></div>
+      <div class="rtab" id="rkLv"><button data-v="e">EASY</button><button data-v="n">NORMAL</button><button data-v="h">HARD</button></div>
       <div class="list" id="rankList"></div>
       <button class="x" data-close="ovRank">✕</button>
     </div>
@@ -892,16 +893,17 @@ addEventListener('load',()=>{if(!window.PHVS){$('bOnline').hidden=true;return}
 $('bOnline').addEventListener('click',()=>{VSHOST=false});
 
 /* ===== 랭킹 (맵·모드별 베스트 타임) ===== */
-let RKM=0,RKI='s',RROWS=null;
+let RKM=0,RKI='s',RKL='n',RROWS=null;
 const MS=['초원','시티','캔디','눈길','바닷가','우주'];
 $('rkMap').innerHTML=MS.map((n,i)=>`<button data-v="${i}" style="font:11px Galmuri11,sans-serif;padding:7px 0">${n}</button>`).join('');
-function rkSync(){$('rkMap').querySelectorAll('button').forEach(b=>b.classList.toggle('on',+b.dataset.v===RKM));$('rkIt').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===RKI))}
+function rkSync(){$('rkMap').querySelectorAll('button').forEach(b=>b.classList.toggle('on',+b.dataset.v===RKM));$('rkIt').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===RKI));$('rkLv').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===RKL))}
+$('rkLv').onclick=e=>{const b=e.target.closest('button');if(b){RKL=b.dataset.v;rkSync();rkRender()}};
 $('rkMap').onclick=e=>{const b=e.target.closest('button');if(b){RKM=+b.dataset.v;rkSync();rkRender()}};$('rkIt').onclick=e=>{const b=e.target.closest('button');if(b){RKI=b.dataset.v;rkSync();rkRender()}};
 function local(){try{return JSON.parse(store.get('kart-ranks')||'[]')}catch(e){return[]}}
 function rkRender(){const el=$('rankList');if(!RROWS){el.innerHTML='<span class="em">LOADING…</span>';return}
- const rows=RROWS.filter(r=>String(r.m).indexOf(RKM+'-'+RKI+'-')===0&&+r.s>0).sort((a,b)=>a.s-b.s).slice(0,50),mw=lastWin&&lastWin.saved?lastWin:null;let mk=false;
+ const rows=RROWS.filter(r=>{const q=String(r.m).split('-');return q[0]===String(RKM)&&q[1]===RKI&&(q[2]||'n')===RKL&&+r.s>0}).sort((a,b)=>a.s-b.s).slice(0,50),mw=lastWin&&lastWin.saved?lastWin:null;let mk=false;
  el.innerHTML=rows.length?rows.map((r,i)=>{let c='';if(mw&&!mk&&r.n===mw.n&&+r.s===mw.s){c='me';mk=true}const lv=String(r.m).split('-')[2];return `<div class="${c}"><span class="r">${i+1}</span><span>${esc(r.n)}${window.phLv?phLv(({e:'EASY',n:'NORMAL',h:'HARD'})[lv]||''):''}</span><span class="s">${fmt(r.s/100)}</span><span class="m">${r.v?r.v+'등':''}</span></div>`}).join(''):'<span class="em">아직 기록이 없어요</span>'}
-async function openRank(){if(state==='race')pause(true);if(lastWin){RKM=+lastWin.m.split('-')[0];RKI=lastWin.m.split('-')[1]}else{RKM=cfg.map;RKI=cfg.it}rkSync();show('ovRank');RROWS=null;rkRender();try{const j=await fetch(RANK_URL+'?g=kart').then(r=>r.json());RROWS=j.top||[]}catch(e){RROWS=local()}rkRender()}
+async function openRank(){if(state==='race')pause(true);if(lastWin){RKM=+lastWin.m.split('-')[0];RKI=lastWin.m.split('-')[1];RKL=lastWin.m.split('-')[2]||'n'}else{RKM=cfg.map;RKI=cfg.it;RKL=cfg.lv}rkSync();show('ovRank');RROWS=null;rkRender();try{const j=await fetch(RANK_URL+'?g=kart').then(r=>r.json());RROWS=j.top||[]}catch(e){RROWS=local()}rkRender()}
 $('bRank').onclick=openRank;$('bRank2').onclick=openRank;document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>hide(b.dataset.close));
 $('bSave').onclick=async()=>{if(!lastWin||lastWin.saved)return;const n=($('nameIn').value.trim()||'익명').slice(0,8);store.set('kart-name',n);lastWin.saved=true;lastWin.n=n;$('bSave').textContent='…';$('bSave').disabled=true;
  const l=local();l.push({n,s:lastWin.s,v:lastWin.v,m:lastWin.m});store.set('kart-ranks',JSON.stringify(l.slice(-300)));
